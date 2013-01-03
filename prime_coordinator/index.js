@@ -22,13 +22,6 @@ if (cluster.isMaster) {
   });
 } else {
     //step one, setup connection to mysql server. We only need 1 mysql connection per server/thread/worker/thing
-    var mysql_connection = mysql.createConnection({
-	host:'charles.sytes.net',
-	database: 'db_primes',
-	user: 'charles',
-	password: '6andromeda9'
-    });    
-    mysql_connection.connect();
 
   //setup a listening socket (or server)
   //the callback happens when something connects
@@ -46,15 +39,38 @@ if (cluster.isMaster) {
 		//data is a buffered object, have to convert to string for easy use
 		ds = data.toString();
 
-		console.log(ds + "\n");
+		//insert a prime to the db
+		var wrapped_insert = function(data){return function insertPrime(){
+			var mysql_connection = mysql.createConnection({
+				host:'charles.sytes.net',
+				database: 'db_primes',
+				user: 'charles',
+				password: '6andromeda9'
+				//debug: true
+    			});    
+   		 	mysql_connection.connect();
 
+
+			//the tostring func adds a \r\n to the end of the input, but mysql conveniently ignores them
+			//because i've defined the column type as an int. So whatever.
+			//escape the input
+   			var myprime = mysql_connection.escape(data.split(" ")[1]);
+
+			//the insert query
+			mysql_connection.query("INSERT INTO `primes` (`prime`) VALUES (" + myprime + ")", function(err, results){
+				if (err) throw err;
+   			});
+		
+			mysql_connection.end();
+
+		}}(ds);
 		//different cases
 		switch(ds.charAt(0)){
 			case "n":
 				returnNextNumSet();
 				break;
 			case "i":
-				insertPrime();
+				wrapped_insert(ds);
 				break;
 			default:
 				c.write("invalid input\n");
@@ -72,21 +88,7 @@ if (cluster.isMaster) {
 			
 		}
 
-		//insert a prime to the db
-		function insertPrime(){
-			//the tostring func adds a \r\n to the end of the input, but mysql conveniently ignores them
-			//because i've defined the column type as an int. So whatever.
-			//escape the input
-   			var myprime = mysql_connection.escape(ds.split(" ")[1]);
 
-			//the insert query
-			mysql_connection.query("INSERT INTO `primes` (`prime`) VALUES (" + myprime + ")", function(err, results){
-				//if (err) throw err;
-   			});
-
-			//at end, successful everything, return success
-			c.write("success\n");
-		}
 	});
   }); 
   

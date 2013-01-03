@@ -58,15 +58,8 @@ void *thread_routine(void *arg){
 		fprintf(stderr, "error getting address info. \n");
 
 	//create socket
-	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if(sock == -1)
-		fprintf(stderr, "error creating socket \n");
-
 	//connect to server
-	status = connect(sock, res->ai_addr, res->ai_addrlen);
-	if(status == -1)
-		fprintf(stderr, "problem connecting to server.");
-	
+
 	//local count is so that we're sure the number isn't going to be changed by some other thread in memory
 	//and we only have to lock the global var to read it into the local one. 
 	long localcount;
@@ -91,15 +84,26 @@ void *thread_routine(void *arg){
 		//now call prime checker on localcount
 		if(check_if_prime(localcount) == 1){
 
-			char buffer[1000000] = {0};
+			char buffer[100] = {0};
 			char *eos = &buffer[0];
 			eos += sprintf(buffer,"i %lu", localcount);
 			printf("sending command: %s", buffer);
 	
+		
+			sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			if(sock == -1)
+				fprintf(stderr, "error creating socket \n");
+
+	
+			status = connect(sock, res->ai_addr, res->ai_addrlen);
+			if(status == -1)
+				fprintf(stderr, "problem connecting to server.");
+	
 			//send number to server
-			len = sizeof(buffer);
+			len = sizeof(localcount);
 			status = send(sock, &buffer, len, 0);
-					
+			
+			close(sock);						
 		}
 	}
 
