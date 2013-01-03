@@ -44,8 +44,8 @@ if (cluster.isMaster) {
 			var mysql_connection = mysql.createConnection({
 				host:'charles.sytes.net',
 				database: 'db_primes',
-				user: 'charles',
-				password: '6andromeda9'
+				user: '***',
+				password: '***'
 				//debug: true
     			});    
    		 	mysql_connection.connect();
