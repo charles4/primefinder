@@ -35,8 +35,8 @@ if(process.argv.length != 4){
 			var mysql_connection = mysql.createConnection({
 				host:'charles.sytes.net',
 				database: 'db_primes',
-				user: 'charles',
-				password: '6andromeda9'
+				user: '****',
+				password: '****'
 				//debug: true
     			}); 
 
@@ -49,8 +49,8 @@ if(process.argv.length != 4){
 						//have to recreate connection after error
 						connection = mysql.createConnection({host:'charles.sytes.net', 
 											database:'db_primes', 
-											user:'charles', 
-											password:'6andromeda9'});
+											user:'****', 
+											password:'****'});
 						//wait 5 seconds and try to connect again
 						setTimeout(handleConnectionError(connection), 5000);
 					}else{
