@@ -57,8 +57,6 @@ void *thread_routine(void *arg){
 	if(status != 0)
 		fprintf(stderr, "error getting address info. \n");
 
-	//create socket
-	//connect to server
 
 	//local count is so that we're sure the number isn't going to be changed by some other thread in memory
 	//and we only have to lock the global var to read it into the local one. 
@@ -87,39 +85,121 @@ void *thread_routine(void *arg){
 			char buffer[100] = {0};
 			char *eos = &buffer[0];
 			eos += sprintf(buffer,"i %lu", localcount);
-			printf("sending command: %s", buffer);
-	
-		
+			//printf("sending command: %s \n", buffer);
+
+			//create socket	
 			sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 			if(sock == -1)
-				fprintf(stderr, "error creating socket \n");
+				fprintf(stderr, "error creating socket. \n");
 
-	
+			//connect to server
 			status = connect(sock, res->ai_addr, res->ai_addrlen);
 			if(status == -1)
-				fprintf(stderr, "problem connecting to server.");
+				fprintf(stderr, "problem connecting to server.\n");
 	
 			//send number to server
 			len = sizeof(localcount);
 			status = send(sock, &buffer, len, 0);
-			
+
 			close(sock);						
 		}
+
 	}
+
 
 	printf("end of thread\n");
 
 	return NULL;
 }
 
+int requestNums(global_counter *globalcounter){
+
+	global_counter *gc = globalcounter;
+
+	//networking information
+	int status, sock, len;
+	struct addrinfo hints;
+	struct addrinfo *res;
+	
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	
+	//get connection info
+	status = getaddrinfo("127.0.0.1", "8000", &hints, &res);
+	if(status != 0)
+		fprintf(stderr, "error getting address info. \n");
+
+	//query server for more numbers to crunch
+	//create socket	
+	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if(sock == -1)
+		fprintf(stderr, "error creating socket. \n");
+
+	//connect to server
+	status = connect(sock, res->ai_addr, res->ai_addrlen);
+	if(status == -1)
+		fprintf(stderr, "problem connecting to server.\n");
+
+	//send request for more numbers
+	char * str = "n";	
+	len = sizeof(str);
+	status = send(sock, str, len, 0);
+
+	//listen for response
+	char buffer[100]; 
+	status = recv(sock, buffer, sizeof buffer, 0);
+	printf("received: %s\n", buffer);
+
+	//close socket
+	close(sock);	
+
+	//check if response is the stopcode	
+	char * stop = "stop";
+	status = strncmp(stop, buffer, 4);
+	printf("strncmp status = %d\n", status);
+	
+	if(status == 0)
+		return 1;
+
+	//check if response is wait
+	status = strncmp("wait", buffer, 4);
+	if(status == 0){
+		printf("waiting... \n");
+		return 0;
+	}
+	
+	/*note to self: STRTOK IS NOT THREAD SAFE*/	
+	//if status is not 0, then server returned a numset
+	char * lownum = strtok(buffer, "-");
+	char * highnum = strtok(NULL, "-");
+
+	//convert to long ints
+	long low = strtol(lownum, NULL, 10);
+	long high = strtol(highnum, NULL, 10);
+
+	printf("low: %lu\n", low);
+	printf("high: %lu\n", high);
+
+//	status = pthread_mutex_lock(&gc->mutex);
+//	assert(0==status);
+
+	gc->count = low;
+	gc->maxcount = high;		
+	
+//	status = pthread_mutex_unlock(&gc->mutex);
+//	assert(0==status);
+
+
+	return 0;
+}
+
 int main (int argc, char *argv[]) {
 	
-
 	//setup four threads running thread_routine
 
 	global_counter *gcounter;
-	int status;
-	char *end;
+	int status, stopcode;
 	pthread_t thread1, thread2, thread3, thread4;
 
 	//allocate meomry for our global counter struct
@@ -129,58 +209,60 @@ int main (int argc, char *argv[]) {
 		return 1;
 	}
 
-	//interpret command line values
-	if (argc != 2){
-		printf("usage: %s searchceiling\n\n", argv[0]);
-		return 0;
-	}else{
-		gcounter->maxcount = strtol(argv[1], &end, 10);
-		//printf("gcount->maxcount = %lu \n", gcounter->maxcount);
-	}
-
-	//initialize remaining global counter struct values
-	gcounter->count = 1;
-
+	//initialize mutex
 	status = pthread_mutex_init (&gcounter->mutex, NULL);	
 	if(status != 0){
 		assert(status==0);
 	}
 
-	//launch threads
-	status = pthread_create (&thread1, NULL, thread_routine, (void*)gcounter);
-	if(status !=0){
-		assert(status==0);	
-	}
-	
-	status = pthread_create (&thread2, NULL, thread_routine, (void*)gcounter);
-	if(status !=0){
-		assert(status==0);
-	}
-	
-	status = pthread_create (&thread3, NULL, thread_routine, (void*)gcounter);
-	if(status !=0){
-		assert(status==0);
-	}
+	//handle threads in loop
+	//whenever threads finish, query server for more numbers or stop
+	stopcode = 0;
 
-	status = pthread_create (&thread4, NULL, thread_routine, (void*)gcounter);
-	if(status !=0){
-		assert(status==0);
-	}
+	while(stopcode != 1){
 
-	
+		//get number range from server
+		//requestNums updates the global struct
+	  	stopcode = requestNums(gcounter);
 
-
-	status = pthread_join (thread1, NULL);
-	assert(0==status);
-	
-	status = pthread_join (thread2, NULL);
-	assert(0==status);
-
-	status = pthread_join (thread3, NULL);
-	assert(0==status);
+		//launch threads
+		status = pthread_create (&thread1, NULL, thread_routine, (void*)gcounter);
+		if(status !=0){
+			assert(status==0);	
+		}
 		
-	status = pthread_join (thread4, NULL);
-	assert(0==status);
+		status = pthread_create (&thread2, NULL, thread_routine, (void*)gcounter);
+		if(status !=0){
+			assert(status==0);
+		}
+	
+		status = pthread_create (&thread3, NULL, thread_routine, (void*)gcounter);
+		if(status !=0){
+			assert(status==0);
+		}
+
+		status = pthread_create (&thread4, NULL, thread_routine, (void*)gcounter);
+		if(status !=0){
+			assert(status==0);
+		}
+
+	
+
+
+		status = pthread_join (thread1, NULL);
+		assert(0==status);
+	
+		status = pthread_join (thread2, NULL);
+		assert(0==status);
+
+		status = pthread_join (thread3, NULL);
+		assert(0==status);
+		
+		status = pthread_join (thread4, NULL);
+		assert(0==status);
+
+
+	}
 	
 	//free memory from global counter struct
 	(void)free (gcounter);
