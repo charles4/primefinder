@@ -6,20 +6,18 @@ The server needs to be able to provide the workers with a set of numbers to crun
 
 Currently, the program is under development (by me, who knew?). 
 
-Anyways, right now you can compile the c code using 
+Right now you can compile the c code using 
 
 gcc -Wall -Pthread threaded_primefinder.c
 
-You can run the application with "./a.out somenumber"
+You can run a worker simply with "./a.out"
 
 You need nodejs installed to use the server.
 
-Once its installed you can run it using the command "nodejs index.js"
+Once its installed you can run it using the command "nodejs server.js min max"
 
-The server uses nodejs's cluster module, which is not stable at the moment. So hopefully it will keep working.
+So, first you launch the server. Then, you launch however many workers.
 
-As of right now, the client (the c code) can calculate primes and pass them to server. However, the server is not storing them and something is massively slowing down the code (it takes like 3 minutes to find the primes from 1-100).
-
-So that's what I'll be fixing next.
+Biggest problem right now is the mysql db I'm using, which is much to slow at insertions to keep up with the cluster. I'm trying to decide between having the nodejs server keep an array in memory and slowly submit the numbers a couple at a time, vs moving to a faster database. Or maybe both. I guess we'll see.
 
 Anyways, yeah. Thats about that.
