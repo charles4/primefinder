@@ -18,6 +18,11 @@ Once its installed you can run it using the command "nodejs server.js min max"
 
 So, first you launch the server. Then, you launch however many workers.
 
-Biggest problem right now is the mysql db I'm using, which is much to slow at insertions to keep up with the cluster. I'm trying to decide between having the nodejs server keep an array in memory and slowly submit the numbers a couple at a time, vs moving to a faster database. Or maybe both. I guess we'll see.
+ToDo_
+
+(fixed) -- Switched over to using Redis as the db -- Biggest problem right now is the mysql db I'm using, which is much to slow at insertions to keep up with the cluster. I'm trying to decide between having the nodejs server keep an array in memory and slowly submit the numbers a couple at a time, vs moving to a faster database. Or maybe both. I guess we'll see.
+
+(todo) the workers have occassionally started  "freezing" after every couple hundred thousand numbers or so. Its not segfaulting, or exiting, or throwing any errors. It just stops doing anything.
+
 
 Anyways, yeah. Thats about that.
